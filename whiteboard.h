@@ -3,19 +3,13 @@
 
 #include "nanovg.h"
 #include "roboto_regular.h"
+#include <iostream>
+#include <string>
+#include <sstream>
+#include "./deps/AsQuotedString/AsQuotedString.h"
 
-void drawLabel(struct NVGcontext* vg, const char* text, float x, float y, float w, float h)
-{
-    NVG_NOTUSED(w);
 
-    nvgFontSize(vg, 16.0f);
-    nvgFontFace(vg, "sans");
-    nvgFillColor(vg, nvgRGBA(0,0,0,128) );
-
-    nvgTextAlign(vg,NVG_ALIGN_CENTER|NVG_ALIGN_MIDDLE);
-    nvgText(vg, x,y+h*0.5f,text, NULL);
-}
-
+const std::string whiteboardPrefix = "Whiteboard: ";
 
 class whiteboard {
 public:
@@ -26,8 +20,144 @@ public:
     }
 
     void draw(NVGcontext* vg, int width, int height) {
-        drawLabel(vg, "Whiteboard!", width/2, height/4, 30, 30);
+        nvgFontSize(vg, 16.0f);
+        nvgFontFace(vg, "sans");
+        nvgFillColor(vg, nvgRGBA(0,0,0,255));
+        nvgStrokeColor(vg, nvgRGBA(0,0,0,255));
+        nvgTextAlign(vg,NVG_ALIGN_CENTER|NVG_ALIGN_MIDDLE);
+
+        commandBufferMutex.lock();
+        std::stringstream tokens(commandBuffer);
+
+        std::string command;
+
+        while (tokens >> command) {
+            if (command == "text") {
+                float x;
+                float y;
+                tokens >> x;
+                tokens >> y;
+
+                std::string text;
+                tokens >> AsQuotedString(text, '"');
+
+                nvgText(vg, x, y, text.c_str(), NULL);
+            } else if (command == "color") {
+                int r, g, b, a;
+                tokens >> r;
+                tokens >> g;
+                tokens >> b;
+                tokens >> a;
+                nvgFillColor(vg, nvgRGBA(r, g, b, a));
+                nvgStrokeColor(vg, nvgRGBA(r, g, b, a));
+            } else if (command == "dot") {
+                float x;
+                float y;
+                tokens >> x;
+                tokens >> y;
+                nvgBeginPath(vg);
+                nvgCircle(vg, x, y, 2);
+                nvgFill(vg);
+            } else if (command == "line") {
+                float x1;
+                float y1;
+                float x2;
+                float y2;
+                tokens >> x1;
+                tokens >> y1;
+                tokens >> x2;
+                tokens >> y2;
+                nvgBeginPath(vg);
+                nvgMoveTo(vg, x1, y1);
+                nvgLineTo(vg, x2, y2);
+                nvgStroke(vg);
+            } else if (command == "arc") {
+                float x1;
+                float y1;
+                float x2;
+                float y2;
+                float directionX;
+                float directionY;
+
+                tokens >> x1;
+                tokens >> y1;
+                tokens >> directionX;
+                tokens >> directionY;
+                tokens >> x2;
+                tokens >> y2;
+
+                float halfChordX = (x2 - x1) / 2;
+                float halfChordY = (y2 - y1) / 2;
+
+                float perpendicularDirectionX = -directionY;
+                float perpendicularDirectionY = directionX;
+
+                // three equivalent questions:
+                // 1) how many times do you need to go the projection of perpendicularDirection onto the halfChord
+                //    to reach the center point of the chord / endpoint of halfChord?
+                // 2) how many times do you need to go perpendicularDirection
+                //    from (x1, y1) to reach the center of the circle?
+                // 3) what is the radius of the circle?
+                //
+                // we answer 3) with 1):
+                //    r = |hC| / proj_hC(pD) = |hC| / ((hC · pD) / |hC|) = |hC|^2 / (hC · pD)
+                float halfChordLengthSquared = halfChordX * halfChordX + halfChordY * halfChordY;
+                float perpendicularDirectionProjectedOntoHalfChord = (halfChordX * perpendicularDirectionX + halfChordY * perpendicularDirectionY);
+                float radius = fabsf(halfChordLengthSquared / perpendicularDirectionProjectedOntoHalfChord);
+
+                // does direction point left or right of chord?
+                bool clockwise = directionX * -halfChordY + directionY * halfChordX < 0;
+
+                float centerX = x1 + (clockwise ? 1 : -1) * radius * perpendicularDirectionX;
+                float centerY = y1 + (clockwise ? 1 : -1) * radius * perpendicularDirectionY;
+
+                float directionProjectedOntoHalfChord = (halfChordX * directionX + halfChordY * directionY);
+                float startAngle = atan2f(directionY, directionX);
+                float endDirectionX = -1 * (directionX - 2 * (directionProjectedOntoHalfChord * halfChordX / halfChordLengthSquared));
+                float endDirectionY = -1 * (directionY - 2 * (directionProjectedOntoHalfChord * halfChordY / halfChordLengthSquared));
+                float endAngle = atan2f(endDirectionY, endDirectionX);
+
+                float startSweepAngle = startAngle + (clockwise ? -1 : 1) * M_PI_2;
+                float endSweepAngle = endAngle + (clockwise ? -1 : 1) * M_PI_2;
+
+                nvgBeginPath(vg);
+                nvgMoveTo(vg, x1, y1);
+                nvgArc(vg, centerX, centerY, radius, startSweepAngle, endSweepAngle, clockwise ? NVG_CW : NVG_CCW);
+                nvgStroke(vg);
+            }
+        }
+
+        commandBufferMutex.unlock();
     }
+
+    void operator << (std::istream& input) {
+        std::string line;
+        while (std::getline(input, line)) {
+            if (std::equal(whiteboardPrefix.begin(), whiteboardPrefix.end(), line.begin())) {
+                commandBufferMutex.lock();
+                commandBuffer += line.substr(whiteboardPrefix.length()) + "\n";
+                commandBufferMutex.unlock();
+            } else {
+                std::cout << line << std::endl;
+            }
+        }
+
+        if (std::cin.bad()) {
+            // IO error
+        } else if (!std::cin.eof()) {
+            // format error (not possible with getline but possible with operator>>)
+        } else {
+            // format error (not possible with getline but possible with operator>>)
+            // or end of file (can't make the difference)
+        }
+    }
+private:
+    std::string commandBuffer;
+    std::mutex commandBufferMutex;
+};
+
+class drawable {
+
 };
 
 #endif //WHITEBOARDDEMO_WHITEBOARD_H

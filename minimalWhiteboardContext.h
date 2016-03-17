@@ -62,6 +62,7 @@ void minimalWhiteboardContext (int width, int height, whiteboard* wb) {
     }
 
     glfwMakeContextCurrent(window);
+    glfwSwapInterval(10);
 
     NVGcontext* vg = nvgCreateGL3(NVG_ANTIALIAS | NVG_STENCIL_STROKES | NVG_DEBUG);
 
