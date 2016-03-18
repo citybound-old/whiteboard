@@ -1,17 +1,17 @@
 #include "minimalWhiteboardContext.h"
-#include "whiteboard.h"
+#include "whiteboard_renderer.h"
 #include <thread>
 
-whiteboard wb;
-
-void processInput () {
-    wb << std::cin;
+void processInput (whiteboard* wb) {
+    *wb << std::cin;
 }
 
 int main () {
-    std::thread inputThread(&processInput);
+    whiteboard wb;
 
-    minimalWhiteboardContext(800, 400, &wb);
+    std::thread inputThread(&processInput, &wb);
+
+    minimalWhiteboardContext(800, 500, &wb);
 
     inputThread.join();
 }

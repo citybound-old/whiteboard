@@ -9,11 +9,23 @@
 #include "nanovg.h"
 #define NANOVG_GL3_IMPLEMENTATION
 #include "nanovg_gl.h"
-#include "whiteboard.h"
+#include "whiteboard_renderer.h"
 
-void updateMinimalContext (GLFWwindow* window, NVGcontext* vg, whiteboard* wb) {
+whiteboard* wb;
+
+void updateMinimalContext (GLFWwindow* window, NVGcontext* vg) {
     int winWidth, winHeight;
     int fbWidth, fbHeight;
+
+    glfwSetKeyCallback(window, [](GLFWwindow * w, int key, int scancode, int action, int mods) {
+       if (action == GLFW_RELEASE || action == GLFW_REPEAT) {
+           if (key == GLFW_KEY_RIGHT) {
+               wb->forward();
+           } else if (key == GLFW_KEY_LEFT) {
+               wb->backward();
+           }
+       }
+    });
 
     while (!glfwWindowShouldClose(window)) {
         glfwGetWindowSize(window, &winWidth, &winHeight);
@@ -39,11 +51,13 @@ void updateMinimalContext (GLFWwindow* window, NVGcontext* vg, whiteboard* wb) {
     glfwTerminate();
 }
 
-void minimalWhiteboardContext (int width, int height, whiteboard* wb) {
+void minimalWhiteboardContext (int width, int height, whiteboard* wbToUse) {
     if (!glfwInit()) {
         std::cout << "Failed to init GLFW.";
         return;
     }
+
+    wb = wbToUse;
 
 #ifndef _WIN32 // don't require this on win32, and works with more cards
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -68,7 +82,7 @@ void minimalWhiteboardContext (int width, int height, whiteboard* wb) {
 
     wb->init(vg);
 
-    updateMinimalContext(window, vg, wb);
+    updateMinimalContext(window, vg);
 }
 
 #endif //WHITEBOARD_MINIMALWHITEBOARDCONTEXT_H

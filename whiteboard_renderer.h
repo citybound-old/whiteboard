@@ -6,10 +6,12 @@
 #include <iostream>
 #include <string>
 #include <sstream>
+#include <vector>
 #include "./deps/AsQuotedString/AsQuotedString.h"
 
 
 const std::string whiteboardPrefix = "Whiteboard: ";
+const std::string whiteboardSeparator = "Whiteboard: ----";
 
 class whiteboard {
 public:
@@ -17,6 +19,8 @@ public:
         if (nvgCreateFontMem(vg, "sans", Roboto_Regular_ttf, Roboto_Regular_ttf_len, 0) == -1) {
             std::cout << "couldn't load font" << std::endl;
         };
+
+        commandBuffers.emplace_back();
     }
 
     void draw(NVGcontext* vg, int width, int height) {
@@ -24,10 +28,16 @@ public:
         nvgFontFace(vg, "sans");
         nvgFillColor(vg, nvgRGBA(0,0,0,255));
         nvgStrokeColor(vg, nvgRGBA(0,0,0,255));
-        nvgTextAlign(vg,NVG_ALIGN_CENTER|NVG_ALIGN_MIDDLE);
+        nvgTextAlign(vg,NVG_ALIGN_RIGHT|NVG_ALIGN_TOP);
+
+        nvgText(vg, width - 10, 10, (std::to_string(currentBuffer + 1) + "/" + std::to_string(commandBuffers.size())).c_str(), NULL);
+        nvgStrokeWidth(vg, 1.0f / height);
+        nvgScale(vg, height, height);
 
         commandBufferMutex.lock();
-        std::stringstream tokens(commandBuffer);
+        std::stringstream tokens(commandBuffers[currentBuffer]);
+
+        nvgTextAlign(vg,NVG_ALIGN_CENTER|NVG_ALIGN_MIDDLE);
 
         std::string command;
 
@@ -134,9 +144,15 @@ public:
         std::string line;
         while (std::getline(input, line)) {
             if (std::equal(whiteboardPrefix.begin(), whiteboardPrefix.end(), line.begin())) {
-                commandBufferMutex.lock();
-                commandBuffer += line.substr(whiteboardPrefix.length()) + "\n";
-                commandBufferMutex.unlock();
+                if (std::equal(whiteboardSeparator.begin(), whiteboardSeparator.end(), line.begin())) {
+                    commandBufferMutex.lock();
+                    commandBuffers.emplace_back();
+                    commandBufferMutex.unlock();
+                } else {
+                    commandBufferMutex.lock();
+                    commandBuffers.back() += line.substr(whiteboardPrefix.length()) + "\n";
+                    commandBufferMutex.unlock();
+                }
             } else {
                 std::cout << line << std::endl;
             }
@@ -151,8 +167,21 @@ public:
             // or end of file (can't make the difference)
         }
     }
+
+    void forward () {
+        commandBufferMutex.lock();
+        currentBuffer = std::min(currentBuffer + 1, commandBuffers.size() - 1);
+        commandBufferMutex.unlock();
+    }
+
+    void backward () {
+        commandBufferMutex.lock();
+        currentBuffer = currentBuffer == 0ul ? 0ul : currentBuffer - 1;
+        commandBufferMutex.unlock();
+    }
 private:
-    std::string commandBuffer;
+    std::vector<std::string> commandBuffers;
+    unsigned long currentBuffer = 0;
     std::mutex commandBufferMutex;
 };
 
