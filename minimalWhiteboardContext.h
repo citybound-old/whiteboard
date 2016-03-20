@@ -11,7 +11,7 @@
 #include "nanovg_gl.h"
 #include "whiteboard_renderer.h"
 
-whiteboard* wb;
+whiteboard_renderer* wb;
 
 void updateMinimalContext (GLFWwindow* window, NVGcontext* vg) {
     int winWidth, winHeight;
@@ -51,7 +51,7 @@ void updateMinimalContext (GLFWwindow* window, NVGcontext* vg) {
     glfwTerminate();
 }
 
-void minimalWhiteboardContext (int width, int height, whiteboard* wbToUse) {
+void minimalWhiteboardContext (int width, int height, whiteboard_renderer* wbToUse) {
     if (!glfwInit()) {
         std::cout << "Failed to init GLFW.";
         return;

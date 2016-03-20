@@ -7,20 +7,19 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <cmath>
 #include "./deps/AsQuotedString/AsQuotedString.h"
 
 
 const std::string whiteboardPrefix = "Whiteboard: ";
 const std::string whiteboardSeparator = "Whiteboard: ----";
 
-class whiteboard {
+class whiteboard_renderer {
 public:
     void init(NVGcontext* vg) {
         if (nvgCreateFontMem(vg, "sans", Roboto_Regular_ttf, Roboto_Regular_ttf_len, 0) == -1) {
             std::cout << "couldn't load font" << std::endl;
         };
-
-        commandBuffers.emplace_back();
     }
 
     void draw(NVGcontext* vg, int width, int height) {
@@ -31,8 +30,9 @@ public:
         nvgTextAlign(vg,NVG_ALIGN_RIGHT|NVG_ALIGN_TOP);
 
         nvgText(vg, width - 10, 10, (std::to_string(currentBuffer + 1) + "/" + std::to_string(commandBuffers.size())).c_str(), NULL);
-        nvgStrokeWidth(vg, 1.0f / height);
-        nvgScale(vg, height, height);
+        nvgStrokeWidth(vg, 1.0f / (height* 0.8));
+        nvgTranslate(vg, height * 0.1, height * 0.1);
+        nvgScale(vg, height * 0.8, height * 0.8);
 
         commandBufferMutex.lock();
         std::stringstream tokens(commandBuffers[currentBuffer]);
@@ -66,7 +66,7 @@ public:
                 tokens >> x;
                 tokens >> y;
                 nvgBeginPath(vg);
-                nvgCircle(vg, x, y, 2);
+                nvgCircle(vg, x, y, 2.0f / height);
                 nvgFill(vg);
             } else if (command == "line") {
                 float x1;
@@ -113,7 +113,7 @@ public:
                 //    r = |hC| / proj_hC(pD) = |hC| / ((hC · pD) / |hC|) = |hC|^2 / (hC · pD)
                 float halfChordLengthSquared = halfChordX * halfChordX + halfChordY * halfChordY;
                 float perpendicularDirectionProjectedOntoHalfChord = (halfChordX * perpendicularDirectionX + halfChordY * perpendicularDirectionY);
-                float radius = fabsf(halfChordLengthSquared / perpendicularDirectionProjectedOntoHalfChord);
+                float radius = std::abs(halfChordLengthSquared / perpendicularDirectionProjectedOntoHalfChord);
 
                 // does direction point left or right of chord?
                 bool clockwise = directionX * -halfChordY + directionY * halfChordX < 0;
@@ -122,10 +122,10 @@ public:
                 float centerY = y1 + (clockwise ? 1 : -1) * radius * perpendicularDirectionY;
 
                 float directionProjectedOntoHalfChord = (halfChordX * directionX + halfChordY * directionY);
-                float startAngle = atan2f(directionY, directionX);
+                float startAngle = std::atan2(directionY, directionX);
                 float endDirectionX = -1 * (directionX - 2 * (directionProjectedOntoHalfChord * halfChordX / halfChordLengthSquared));
                 float endDirectionY = -1 * (directionY - 2 * (directionProjectedOntoHalfChord * halfChordY / halfChordLengthSquared));
-                float endAngle = atan2f(endDirectionY, endDirectionX);
+                float endAngle = std::atan2(endDirectionY, endDirectionX);
 
                 float startSweepAngle = startAngle + (clockwise ? -1 : 1) * M_PI_2;
                 float endSweepAngle = endAngle + (clockwise ? -1 : 1) * M_PI_2;
