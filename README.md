@@ -1,16 +1,15 @@
-*Dieser Code ist Teil von und entwickelt für [Citybound](http://cityboundsim.com).
-Irgendwann könnte er stabil und allgemein benutzbar werden!!*
+*This code is part of and developed for [Citybound](http://cityboundsim.com).
+At some point in the future it might become stable and generally useful!*
 
 # whiteboard
 
-## Einfache graphische Konsolenausgabe
+## Simple graphical console output
 
-Stell dir vor, du könntest auf der Standardausgabe einfach eine kleine Zeichnung ausgeben!
-*whiteboard* macht dies möglich!
+Imagine you could just print a small drawing to stdout - *whiteboard* makes this possible!
 
-Schicke einfach speziell formatierte Zeichnungskommandos über die Standardausgabe und z.B. eine Röhre in whiteboard hinein.
+Just send special drawing commands to stdout and pipe your program to whiteboard.
 
-**zeichnung.txt**
+**drawing.txt**
 ```
 Whiteboard: ----
 Whiteboard: arc 0.25 0.25 1 0 0.25 0.75
@@ -26,20 +25,20 @@ Whiteboard: color 255 0 0 255
 Whiteboard: dot 0.375 0.716506
 Whiteboard: dot 0.375 0.283494
 ```
-und dann:
+and then:
 
 ```
 whiteboard < zeichnung.txt
 ```
 
-zeigt folgendes Fenster an:
+will show the following window:
 
 ![](http://i.imgur.com/alwAWdY.png)
 
-## Beispielanwendungen
+## Example applications
 
-[compass](https://github.com/citybound/compass), die Geometriebibliothek von Citybound benutzt whiteboard um Einheitentests graphisch zu veranschaulichen. Hier wurden auch ein paar Hilsfunktionen geschrieben, um z.B. einfach eine Gerade oder einen Kreis auf das whiteboard zu zeichnen.
+[compass](https://github.com/citybound/compass), the geometry library that Citybound uses. whiteboard is used here for additional graphical debug info in unit tests. Helper functions have been written to quickly write the correct drawing commands for compass'es geometric primitives, like lines, curves or circles.
 
-## Lizenz
+## License
 
-MIT, siehe [LICENSE.md](LICENSE.md) für Details.
+MIT, see [LICENSE.md](LICENSE.md) for details.
